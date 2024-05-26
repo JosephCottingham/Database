@@ -9,15 +9,18 @@ StorageEngine::StorageEngine(const std::string& basePath) {
     populateTables();
 };
 
-int StorageEngine::createTable(std::string& tableName, std::string& primaryKey, std::vector<Column>& tableSchema) {
+int StorageEngine::createTable(std::string tableName, std::vector<ColumnMetadata> columns) {
     if (tables.find(tableName) != tables.end()) return -1;
-    for (Column& column : tableSchema) {
+    for (ColumnMetadata column : columns) {
         size_t size = getSizeInBytes(column.datatype);
         if (size > 255) throw std::runtime_error("Column type size is too large, max size is 255 bytes");
         column.sizeInBytes = static_cast<uint8_t>(size);
         std::cout << "Column: " << column.name << " Size: " << column.sizeInBytes << std::endl;
     }
-    tables[tableName] = &Table(basePath, tableName, primaryKey, tableSchema);
+    TableConfig config(basePath, tableName, columns);
+    config.basePath = basePath;
+
+    tables[tableName] = &Table(config);
     return 0;
 };
 
@@ -25,6 +28,12 @@ int StorageEngine::insertRecord(std::string& tableName, std::vector<uint8_t> rec
     if (tables.find(tableName) == tables.end()) return -1;
     Table* table = tables[tableName];
     return table->insertRecord(recordData);
+};
+
+TableData StorageEngine::readRecord(std::string& tableName, uint64_t recordId) {
+    if (tables.find(tableName) == tables.end()) throw std::runtime_error("Table not found");
+    Table* table = tables[tableName];
+    return table->getRecord(recordId);
 };
 
 void StorageEngine::populateTables() {
